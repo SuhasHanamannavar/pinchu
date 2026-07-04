@@ -62,6 +62,7 @@ class MainWindow(QMainWindow):
         self._setup_overlay()
         self._setup_tray()
         self._setup_timers()
+        self._setup_memory_signals()
 
         self.overlay.show_message("Hey! I'm Pinchu. Ready to have a productive day?", 6000)
 
@@ -84,7 +85,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.stack.setStyleSheet("background: transparent;")
 
-        self.dashboard_view = DashboardView(self.task_manager)
+        self.dashboard_view = DashboardView(self.task_manager, self.memory)
         self.dashboard_view.add_tasks_clicked.connect(lambda: self.stack.setCurrentWidget(self.task_input_view))
         self.dashboard_view.view_changed.connect(self._on_view_change)
 
@@ -216,6 +217,8 @@ class MainWindow(QMainWindow):
         self.tray.show_dashboard.connect(self._show_dashboard)
         self.tray.show_overlay.connect(lambda: self.overlay.show())
         self.tray.quit_app.connect(self._quit)
+        self.tray.improve_memory.connect(self._on_improve_memory)
+        self.tray.clear_memory.connect(self._on_clear_memory)
 
     def _setup_timers(self):
         self.reminder_timer = QTimer(self)
@@ -229,6 +232,11 @@ class MainWindow(QMainWindow):
         self.overlay_timer = QTimer(self)
         self.overlay_timer.timeout.connect(self._cycle_overlay_state)
         self.overlay_timer.start(120000)
+
+    def _setup_memory_signals(self):
+        self.memory.memory_improved.connect(lambda msg: self.tray.show_notification("Memory", msg, 3000))
+        self.memory.memory_cleared.connect(lambda msg: self.tray.show_notification("Memory", msg, 3000))
+        self.memory.memory_error.connect(lambda msg: self.tray.show_notification("Memory Error", msg, 5000))
 
     def _on_tasks_submitted(self, raw_text: str):
         self.task_manager.set_today_tasks(raw_text)
@@ -248,6 +256,7 @@ class MainWindow(QMainWindow):
                 f"Tasks set for today: {raw_text}",
                 metadata={"type": "task_plan", "date": datetime.now().isoformat()}
             ))
+            run_async(self.memory.improve())
             self.tray.show_notification(
                 "Tasks Organized!",
                 f"Created {len(tasks)} tasks. Pinchu will keep you on track!",
@@ -295,6 +304,10 @@ class MainWindow(QMainWindow):
                         str(task["index"]),
                         min(1.0, task.get("progress", 0) + 0.1)
                     )
+                    run_async(self.memory.remember(
+                        f"Working on: {task['task']} in {app}",
+                        metadata={"type": "activity", "app": app, "task": task["task"]}
+                    ))
                 except Exception:
                     pass
 
@@ -321,6 +334,30 @@ class MainWindow(QMainWindow):
         self.show()
         self.raise_()
         self.activateWindow()
+
+    def _on_improve_memory(self):
+        self.overlay.set_character_state(CharacterState.THINKING, "Optimizing my memory...")
+        try:
+            result = _get_or_create_loop().run_until_complete(
+                self.memory.improve()
+            )
+            self.overlay.set_character_state(CharacterState.PROUD, "Memory optimized! I remember better now.")
+            self.tray.show_notification("Memory Improved", "Pinchu's memory has been optimized.", 3000)
+        except Exception as e:
+            self.overlay.set_character_state(CharacterState.CONCERNED, "Memory optimization failed.")
+            self.tray.show_notification("Error", f"Improve failed: {e}", 3000)
+
+    def _on_clear_memory(self):
+        self.overlay.set_character_state(CharacterState.THINKING, "Clearing memory...")
+        try:
+            _get_or_create_loop().run_until_complete(
+                self.memory.forget()
+            )
+            self.overlay.set_character_state(CharacterState.EXCITED, "Memory cleared! Fresh start.")
+            self.tray.show_notification("Memory Cleared", "Pinchu's memory has been cleared.", 3000)
+        except Exception as e:
+            self.overlay.set_character_state(CharacterState.CONCERNED, "Failed to clear memory.")
+            self.tray.show_notification("Error", f"Clear failed: {e}", 3000)
 
     def _quit(self):
         self.overlay.hide()

@@ -26,6 +26,8 @@ class TrayIcon(QObject):
     show_dashboard = pyqtSignal()
     show_overlay = pyqtSignal()
     quit_app = pyqtSignal()
+    improve_memory = pyqtSignal()
+    clear_memory = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -58,6 +60,34 @@ class TrayIcon(QObject):
         overlay_action = QAction("Show Pinchu")
         overlay_action.triggered.connect(self.show_overlay.emit)
         menu.addAction(overlay_action)
+
+        menu.addSeparator()
+
+        memory_menu = menu.addMenu("Memory")
+        memory_menu.setStyleSheet("""
+            QMenu {
+                background-color: #1c1730;
+                color: #f0eaf8;
+                border: 1px solid #2a2240;
+                border-radius: 8px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 8px 24px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #9b6dff;
+            }
+        """)
+
+        improve_action = QAction("Optimize Memory")
+        improve_action.triggered.connect(self.improve_memory.emit)
+        memory_menu.addAction(improve_action)
+
+        clear_action = QAction("Clear Memory")
+        clear_action.triggered.connect(self.clear_memory.emit)
+        memory_menu.addAction(clear_action)
 
         menu.addSeparator()
 

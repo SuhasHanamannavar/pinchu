@@ -11,9 +11,10 @@ class DashboardView(QWidget):
     add_tasks_clicked = pyqtSignal()
     view_changed = pyqtSignal(str)
 
-    def __init__(self, task_manager, parent=None):
+    def __init__(self, task_manager, memory_manager=None, parent=None):
         super().__init__(parent)
         self.task_manager = task_manager
+        self.memory_manager = memory_manager
         self.setStyleSheet("background: transparent;")
         self._setup_ui()
         self._refresh_timer = QTimer(self)
@@ -158,6 +159,34 @@ class DashboardView(QWidget):
         scroll.setWidget(scroll_content)
         tc_layout.addWidget(scroll)
         self.dynamic_layout.addWidget(tasks_card, 1)
+
+        if self.memory_manager:
+            mem_card = make_card()
+            mc_layout = QVBoxLayout(mem_card)
+            mc_layout.setContentsMargins(20, 16, 20, 16)
+            mc_layout.setSpacing(8)
+            mc_header = QHBoxLayout()
+            mc_title = QLabel("Memory")
+            mc_title.setStyleSheet(f"color: {COLORS['text_primary']}; font-size: {SIZES['heading_size']}px; font-weight: 600; background: transparent; border: none;")
+            mc_header.addWidget(mc_title)
+            mc_header.addStretch()
+            mc_layout.addLayout(mc_header)
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                stats = loop.run_until_complete(self.memory_manager.get_memory_stats())
+                loop.close()
+                entries = stats.get("total_entries", 0)
+                days = stats.get("total_days", 0)
+                connected = "Connected" if stats.get("cognee_connected") else "Local only"
+                mem_info = QLabel(f"Entries: {entries}  |  Days: {days}  |  Cognee: {connected}")
+                mem_info.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: {SIZES['small_size']}px; background: transparent; border: none;")
+                mc_layout.addWidget(mem_info)
+            except Exception:
+                mem_info = QLabel("Memory stats unavailable")
+                mem_info.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: {SIZES['small_size']}px; background: transparent; border: none;")
+                mc_layout.addWidget(mem_info)
+            self.dynamic_layout.addWidget(mem_card)
 
     def _complete_task(self, idx):
         self.task_manager.complete_task(str(idx))
