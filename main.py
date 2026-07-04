@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt5.QtGui import QFont, QPainter, QColor, QLinearGradient, QIcon, QPixmap
 
-from ui.design import COLORS, SIZES, FONTS, MAIN_STYLESHEET
+from ui.design import COLORS, SIZES, FONTS, MAIN_STYLESHEET, IS_MACOS
 from task_manager import TaskManager
 from activity_monitor import ActivityMonitor
 from ai_client import AIClient, _get_or_create_loop
@@ -40,7 +40,7 @@ def create_app_icon():
     painter.setPen(QColor(0, 0, 0, 0))
     painter.drawEllipse(4, 4, 56, 56)
     painter.setPen(QColor("#ffffff"))
-    font = QFont("Segoe UI", 28, QFont.Bold)
+    font = QFont("SF Pro Display" if platform.system() == "Darwin" else "Segoe UI", 28, QFont.Bold)
     painter.setFont(font)
     painter.drawText(pixmap.rect(), 0x84 | 0x80, "P")
     painter.end()
@@ -402,7 +402,7 @@ def main():
     app.setQuitOnLastWindowClosed(False)
     app.setWindowIcon(create_app_icon())
 
-    font = QFont(FONTS['body'], 10)
+    font = QFont(FONTS['body'], 13 if IS_MACOS else 10)
     app.setFont(font)
 
     app.setStyleSheet(MAIN_STYLESHEET)

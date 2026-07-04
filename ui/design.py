@@ -1,6 +1,8 @@
+import platform
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 
+IS_MACOS = platform.system() == "Darwin"
 
 COLORS = {
     "bg_primary": "#0d0b14",
@@ -32,12 +34,20 @@ COLORS = {
     "text_white": "#ffffff",
 }
 
-FONTS = {
-    "heading": "Segoe UI",
-    "body": "Segoe UI",
-    "mono": "Cascadia Code",
-    "accent": "Segoe UI Semibold",
-}
+if IS_MACOS:
+    FONTS = {
+        "heading": "SF Pro Display",
+        "body": "SF Pro Text",
+        "mono": "SF Mono",
+        "accent": "SF Pro Display Bold",
+    }
+else:
+    FONTS = {
+        "heading": "Segoe UI",
+        "body": "Segoe UI",
+        "mono": "Cascadia Code",
+        "accent": "Segoe UI Semibold",
+    }
 
 SIZES = {
     "sidebar_width": 220,
