@@ -21,6 +21,8 @@ from ui.views.dashboard import DashboardView
 from ui.views.task_input import TaskInputView
 from ui.views.summary import SummaryView
 from ui.views.chat import ChatView
+from ui.views.knowledge_graph import KnowledgeGraphView
+from context_chain import SessionContext
 
 
 def run_async(coro):
@@ -57,6 +59,7 @@ class MainWindow(QMainWindow):
         self.activity_monitor = ActivityMonitor()
         self.ai_client = AIClient()
         self.memory = MemoryManager()
+        self.session_context = SessionContext()
 
         self._setup_ui()
         self._setup_overlay()
@@ -64,6 +67,7 @@ class MainWindow(QMainWindow):
         self._setup_timers()
         self._setup_memory_signals()
 
+        self.session_context.start_session()
         self.overlay.show_message("Hey! I'm Pinchu. Ready to have a productive day?", 6000)
 
         try:
@@ -99,10 +103,14 @@ class MainWindow(QMainWindow):
         self.chat_view = ChatView(self.ai_client)
         self.chat_view.back_clicked.connect(lambda: self.stack.setCurrentWidget(self.dashboard_view))
 
+        self.knowledge_graph_view = KnowledgeGraphView(self.memory)
+        self.knowledge_graph_view.back_clicked.connect(lambda: self.stack.setCurrentWidget(self.dashboard_view))
+
         self.stack.addWidget(self.dashboard_view)
         self.stack.addWidget(self.task_input_view)
         self.stack.addWidget(self.summary_view)
         self.stack.addWidget(self.chat_view)
+        self.stack.addWidget(self.knowledge_graph_view)
 
         main_layout.addWidget(self.stack, 1)
 
@@ -146,6 +154,7 @@ class MainWindow(QMainWindow):
             ("Tasks", "tasks"),
             ("Summary", "summary"),
             ("Chat", "chat"),
+            ("Graph", "graph"),
         ]
 
         self.nav_buttons = {}
@@ -195,6 +204,7 @@ class MainWindow(QMainWindow):
             "tasks": self.dashboard_view,
             "summary": self.summary_view,
             "chat": self.chat_view,
+            "graph": self.knowledge_graph_view,
         }
         if key in view_map:
             self.stack.setCurrentWidget(view_map[key])
@@ -244,6 +254,8 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentWidget(self.dashboard_view)
         self._on_nav("dashboard")
 
+        self.session_context.add_context(f"Tasks submitted: {raw_text}", "user")
+
         try:
             tasks = [line.strip() for line in raw_text.split("\n") if line.strip()]
             result = _get_or_create_loop().run_until_complete(
@@ -257,6 +269,7 @@ class MainWindow(QMainWindow):
                 metadata={"type": "task_plan", "date": datetime.now().isoformat()}
             ))
             run_async(self.memory.improve())
+            self.session_context.add_context(f"Tasks classified: {len(tasks)} tasks created", "pinchu")
             self.tray.show_notification(
                 "Tasks Organized!",
                 f"Created {len(tasks)} tasks. Pinchu will keep you on track!",
@@ -321,12 +334,19 @@ class MainWindow(QMainWindow):
             self.overlay.set_character_state(CharacterState.IDLE)
 
     def _on_chat_submit(self, text: str):
-        context = f"Today's tasks: {self.task_manager.get_today_tasks()}"
+        self.session_context.add_context(text, "user")
+        session_context = self.session_context.get_context_for_ai()
+        context = f"Today's tasks: {self.task_manager.get_today_tasks()}\n\nSession context:\n{session_context}"
         try:
             response = _get_or_create_loop().run_until_complete(
                 self.ai_client.chat_conversational(text, context)
             )
             self.overlay.add_chat_response(response)
+            self.session_context.add_context(response, "pinchu")
+            run_async(self.memory.remember(
+                f"Chat: User asked '{text[:50]}' | Pinchu replied '{response[:50]}'",
+                metadata={"type": "chat", "user_msg": text[:100], "ai_msg": response[:100]}
+            ))
         except Exception:
             self.overlay.add_chat_response("Sorry, I'm having connection issues right now.")
 
@@ -360,6 +380,7 @@ class MainWindow(QMainWindow):
             self.tray.show_notification("Error", f"Clear failed: {e}", 3000)
 
     def _quit(self):
+        self.session_context.end_session()
         self.overlay.hide()
         self.tray.hide()
         QApplication.quit()
