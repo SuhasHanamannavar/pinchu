@@ -11,6 +11,12 @@ __pycache__/
 # User data
 data/
 
+# Build artifacts
+dist/
+build/
+*.spec
+*.pfx
+
 # IDE
 .vscode/
 .idea/
