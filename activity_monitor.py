@@ -54,10 +54,12 @@ class ActivityMonitor:
         return apps
 
     def log_activity(self, window_title: str, app_name: str):
+        activity_type = self.get_detected_activity_type(window_title, app_name)
         entry = {
             "timestamp": datetime.now().isoformat(),
             "window": window_title[:200],
             "app": app_name,
+            "activity_type": activity_type,
         }
         with open(self._log_file, "a") as f:
             f.write(json.dumps(entry) + "\n")
@@ -72,17 +74,36 @@ class ActivityMonitor:
         apps[app_name] += 5
         log_path.write_text(json.dumps(apps, indent=2))
 
+        activity_log = DATA_DIR / f"activity_{today}.jsonl"
+        with open(activity_log, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+
     def check_task_match(self, tasks: list, window_title: str, app_name: str) -> list:
         matches = []
         combined = (window_title + " " + app_name).lower()
         keywords_map = {
-            "work": ["visual studio", "code", "ide", "pycharm", "intellij", "sublime", "notepad++", "terminal", "powershell"],
+            "coding": ["visual studio", "code", "ide", "pycharm", "intellij", "sublime", "notepad++", "terminal", "powershell", "cmd"],
             "email": ["outlook", "gmail", "mail", "thunderbird"],
-            "meeting": ["teams", "zoom", "meet", "skype", "webex"],
-            "design": ["figma", "photoshop", "illustrator", "canva", "sketch"],
+            "meeting": ["teams", "zoom", "meet", "skype", "webex", "discord"],
+            "design": ["figma", "photoshop", "illustrator", "canva", "sketch", "blender"],
             "browsing": ["chrome", "firefox", "edge", "brave", "opera"],
             "document": ["word", "excel", "powerpoint", "docs", "sheets", "notion", "obsidian"],
+            "gaming": ["steam", "epic games", "roblox", "minecraft", "league of legends", "valorant", "fortnite"],
+            "social": ["twitter", "x.com", "reddit", "facebook", "instagram", "linkedin", "tiktok"],
+            "streaming": ["youtube", "netflix", "twitch", "spotify", "disney+", "prime video"],
+            "focus": ["deep work", "focus", "pomodoro", "timer"],
+            "creative": ["blender", "unity", "unreal", "after effects", "premiere", "davinci"],
+            "communication": ["slack", "telegram", "whatsapp", "discord", "signal"],
         }
+        detected_type = "other"
+        for category, keywords in keywords_map.items():
+            for kw in keywords:
+                if kw in combined:
+                    detected_type = category
+                    break
+            if detected_type != "other":
+                break
+
         for task in tasks:
             task_text = task.get("task", "").lower()
             category = task.get("category", "").lower()
@@ -97,6 +118,28 @@ class ActivityMonitor:
                     break
         return list({json.dumps(t, sort_keys=True): t for t in matches}.values())
 
+    def get_detected_activity_type(self, window_title: str, app_name: str) -> str:
+        combined = (window_title + " " + app_name).lower()
+        keywords_map = {
+            "coding": ["visual studio", "code", "ide", "pycharm", "intellij", "sublime", "notepad++", "terminal", "powershell", "cmd"],
+            "email": ["outlook", "gmail", "mail", "thunderbird"],
+            "meeting": ["teams", "zoom", "meet", "skype", "webex", "discord"],
+            "design": ["figma", "photoshop", "illustrator", "canva", "sketch", "blender"],
+            "browsing": ["chrome", "firefox", "edge", "brave", "opera"],
+            "document": ["word", "excel", "powerpoint", "docs", "sheets", "notion", "obsidian"],
+            "gaming": ["steam", "epic games", "roblox", "minecraft", "league of legends", "valorant", "fortnite"],
+            "social": ["twitter", "x.com", "reddit", "facebook", "instagram", "linkedin", "tiktok"],
+            "streaming": ["youtube", "netflix", "twitch", "spotify", "disney+", "prime video"],
+            "focus": ["deep work", "focus", "pomodoro", "timer"],
+            "creative": ["blender", "unity", "unreal", "after effects", "premiere", "davinci"],
+            "communication": ["slack", "telegram", "whatsapp", "discord", "signal"],
+        }
+        for category, keywords in keywords_map.items():
+            for kw in keywords:
+                if kw in combined:
+                    return category
+        return "other"
+
     def get_daily_summary(self) -> dict:
         today = datetime.now().strftime("%Y-%m-%d")
         log_path = DATA_DIR / f"screen_time_{today}.json"
@@ -104,8 +147,23 @@ class ActivityMonitor:
         if log_path.exists():
             apps = json.loads(log_path.read_text())
         total_time = sum(apps.values())
+
+        activity_counts = {}
+        activity_log = DATA_DIR / f"activity_{today}.jsonl"
+        if activity_log.exists():
+            for line in activity_log.read_text().strip().split("\n"):
+                if line:
+                    entry = json.loads(line)
+                    act_type = entry.get("activity_type", "other")
+                    activity_counts[act_type] = activity_counts.get(act_type, 0) + 1
+
+        top_activity = max(activity_counts, key=activity_counts.get) if activity_counts else "unknown"
+
         return {
             "total_active_minutes": total_time,
             "apps": apps,
             "top_app": max(apps, key=apps.get) if apps else "None",
+            "activity_breakdown": activity_counts,
+            "top_activity": top_activity,
+            "total_activity_entries": sum(activity_counts.values()),
         }
