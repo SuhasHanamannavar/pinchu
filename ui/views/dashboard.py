@@ -172,10 +172,7 @@ class DashboardView(QWidget):
             mc_header.addStretch()
             mc_layout.addLayout(mc_header)
             try:
-                import asyncio
-                loop = asyncio.new_event_loop()
-                stats = loop.run_until_complete(self.memory_manager.get_memory_stats())
-                loop.close()
+                stats = self.memory_manager.get_memory_stats()
                 entries = stats.get("total_entries", 0)
                 days = stats.get("total_days", 0)
                 connected = "Connected" if stats.get("cognee_connected") else "Local only"

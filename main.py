@@ -1,6 +1,7 @@
 import sys
 import asyncio
 import threading
+import platform
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,

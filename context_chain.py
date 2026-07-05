@@ -104,7 +104,7 @@ class SessionContext:
         return {}
 
     def _get_pending_tasks(self) -> list:
-        tasks_file = DATA_DIR.parent / "tasks.json"
+        tasks_file = DATA_DIR / "tasks.json"
         if not tasks_file.exists():
             return []
         tasks = json.loads(tasks_file.read_text())

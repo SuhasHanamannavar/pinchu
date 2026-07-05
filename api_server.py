@@ -105,7 +105,7 @@ def submit_tasks(body: TaskSubmit):
 
 @app.put("/tasks/{index}/done")
 def complete_task(index: int):
-    task_manager.mark_task_done(str(index))
+    task_manager.complete_task(str(index))
     return {"status": "ok", "message": f"Task {index} completed"}
 
 
@@ -208,8 +208,11 @@ def get_available_actions():
 @app.post("/burnout/analyze")
 def analyze_burnout():
     activity = activity_monitor.get_daily_summary()
+    today_tasks = task_manager.get_today_tasks()
+    classified = today_tasks.get("classified") or {}
+    tasks_list = classified.get("classified_tasks", [])
     tasks = {
-        "total": len(task_manager.get_today_tasks().split("\n")) if task_manager.get_today_tasks() else 0,
+        "total": len(tasks_list),
         "completed": len(task_manager.get_completed_tasks()),
     }
     result = burnout.analyze(activity, tasks)
