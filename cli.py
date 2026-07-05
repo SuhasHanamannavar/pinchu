@@ -13,6 +13,10 @@ Usage:
     pinchu forget
     pinchu graph
     pinchu history
+    pinchu nodes [type]
+    pinchu agent "open chrome"
+    pinchu burnout
+    pinchu api
 """
 import sys
 import json
@@ -61,7 +65,7 @@ def cmd_list(args):
     tasks_list = classified.get("classified_tasks", [])
     status = day_data.get("task_status", {})
     if not tasks_list:
-        print("No tasks for today. Use 'pinch add' to add some.")
+        print("No tasks for today. Use 'pinchu add' to add some.")
         return
     print(f"\nToday's Tasks ({today}):")
     print("-" * 40)
@@ -198,6 +202,86 @@ def cmd_history(args):
     print()
 
 
+def cmd_nodes(args):
+    try:
+        from memory_nodes import MemoryNodeStore, MemoryNodeType
+        store = MemoryNodeStore()
+        if args and args[0] in [t.value for t in MemoryNodeType]:
+            node_type = MemoryNodeType(args[0])
+            nodes = store.get_by_type(node_type)
+            print(f"\n{node_type.value.title()} Nodes ({len(nodes)}):")
+        else:
+            nodes = store.all()
+            print(f"\nAll Memory Nodes ({len(nodes)}):")
+        print("-" * 40)
+        stats = store.get_type_stats()
+        for ntype, count in stats.items():
+            print(f"  {ntype}: {count}")
+        if nodes:
+            print("\nRecent:")
+            for n in nodes[:5]:
+                print(f"  [{n.node_type.value}] {n.content[:60]}")
+        print()
+    except ImportError:
+        print("Memory nodes module not available.")
+
+
+def cmd_agent(args):
+    if not args:
+        print("Usage: pinchu agent \"open chrome\"")
+        print("Actions: open <app>, go to <url>, search <query>, run <command>")
+        return
+    try:
+        from agent import Agent, AgentAction
+        a = Agent()
+        text = " ".join(args)
+        action = a.parse_action(text)
+        if action:
+            print(f"Executing: {action.action_type.value}...")
+            result = a.execute(action)
+            print(f"Result: {result.status}")
+            if result.result:
+                print(f"  {result.result.get('message', result.result)}")
+        else:
+            print(f"Could not parse action from: {text}")
+    except ImportError:
+        print("Agent module not available.")
+
+
+def cmd_burnout(args):
+    try:
+        from burnout import BurnoutPredictor
+        from activity_monitor import ActivityMonitor
+        predictor = BurnoutPredictor()
+        monitor = ActivityMonitor()
+        activity = monitor.get_daily_summary()
+        tasks = {"total": 5, "completed": 2}
+        result = predictor.analyze(activity, tasks)
+        print(f"\nBurnout Analysis:")
+        print(f"  Level: {result['level'].upper()}")
+        print(f"  Score: {result['score']:.0%}")
+        print(f"  Recommendation: {result['recommendation']}")
+        print("\nFactors:")
+        for factor, data in result["factors"].items():
+            print(f"  {factor}: {data['detail']} (score: {data['score']:.1f})")
+        insights = predictor.get_insights()
+        if insights:
+            print("\nInsights:")
+            for insight in insights:
+                print(f"  - {insight}")
+        print()
+    except ImportError:
+        print("Burnout module not available.")
+
+
+def cmd_api(args):
+    try:
+        from api_server import main
+        main()
+    except ImportError:
+        print("Install API deps: pip install fastapi uvicorn")
+
+
 COMMANDS = {
     "add": cmd_add,
     "list": cmd_list,
@@ -209,6 +293,10 @@ COMMANDS = {
     "forget": cmd_forget,
     "graph": cmd_graph,
     "history": cmd_history,
+    "nodes": cmd_nodes,
+    "agent": cmd_agent,
+    "burnout": cmd_burnout,
+    "api": cmd_api,
 }
 
 

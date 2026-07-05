@@ -6,5 +6,7 @@ cognee>=1.0.0
 SpeechRecognition>=3.10.0
 pyttsx3>=2.90
 
-# macOS-specific: install pyaudio separately
-# pip install pyaudio  (may need brew install portaudio on macOS)
+# API server (optional)
+# pip install pinchu[api]
+# fastapi>=0.100.0
+# uvicorn>=0.23.0
